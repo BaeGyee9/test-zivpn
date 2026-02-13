@@ -1721,6 +1721,10 @@ fi
 # Make executable
 chmod +x /etc/zivpn/udp_proxy.py
 
+# Create log file
+touch /var/log/zivpn-proxy.log
+chmod 644 /var/log/zivpn-proxy.log
+
 # Create systemd service file
 cat >/etc/systemd/system/zivpn-udpproxy.service <<'EOF'
 [Unit]
@@ -1737,13 +1741,6 @@ Restart=always
 RestartSec=3
 StandardOutput=journal
 StandardError=journal
-LimitNOFILE=65536
-
-# Security hardening
-NoNewPrivileges=yes
-PrivateTmp=yes
-ProtectSystem=full
-ProtectHome=yes
 
 [Install]
 WantedBy=multi-user.target
