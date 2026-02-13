@@ -227,7 +227,7 @@ fi
 if jq . >/dev/null 2>&1 <<<'{}'; then
   TMP=$(mktemp)
   jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" '
-    .auth.mode = "passwords" |
+    .auth.mode = "users" |
     .auth.config = $pw |
     .listen = (."listen" // ":5667") |
     .cert = "/etc/zivpn/zivpn.crt" |
@@ -998,7 +998,7 @@ if __name__ == "__main__":
 PY
 
 # Download index.html template
-curl -fsSL -o /etc/zivpn/templates/index.html "https://raw.githubusercontent.com/zawtunwai/ZIVPN-PANEL-1/main/templates/index.html"
+curl -fsSL -o /etc/zivpn/templates/index.html "https://raw.githubusercontent.com/BaeGyee9/test-zivpn/main/templates/index.html"
 if [ $? -ne 0 ]; then
     say "${R}❌ Template download မအောင်မြင် - Fallback ထည့်နေပါတယ်...${Z}"
     # Create basic template
@@ -1096,7 +1096,7 @@ fi
 
 # ===== Download Telegram Bot from GitHub =====
 say "${Y}🤖 GitHub မှ Telegram Bot ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
-curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/zawtunwai/ZIVPN-PANEL-1/main/telegram/bot.py"
+curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/BaeGyee9/test-zivpn/main/telegram/bot.py"
 if [ $? -ne 0 ]; then
   echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
   # Fallback bot code would go here
@@ -1104,10 +1104,10 @@ fi
 
 # ===== DOWNLOAD PROTECTION SYSTEM =====
 say "${Y}🛡️ Downloading protection system...${Z}"
-curl -fsSL -o /root/protection.py "https://raw.githubusercontent.com/zawtunwai/ZIVPN-PANEL-1/main/protection/protection.py" || {
+curl -fsSL -o /root/protection.py "https://raw.githubusercontent.com/BaeGyee9/test-zivpn/main/protection/protection.py" || {
     echo -e "${Y}⚠️ Protection script download failed, using embedded method${Z}"
 }
-curl -fsSL -o /etc/zivpn/self_destruct.sh "https://raw.githubusercontent.com/zawtunwai/ZIVPN-PANEL-1/main/protection/self_destruct.sh" || {
+curl -fsSL -o /etc/zivpn/self_destruct.sh "https://raw.githubusercontent.com/BaeGyee9/test-zivpn/main/protection/self_destruct.sh" || {
     echo -e "${Y}⚠️ Self-destruct script download failed${Z}"
 }
 chmod +x /root/protection.py /etc/zivpn/self_destruct.sh 2>/dev/null || true
@@ -1705,6 +1705,73 @@ rm -rf /tmp/pyinstaller* /tmp/_MEI* 2>/dev/null
 # Set strict permissions
 chmod 700 /etc/zivpn
 chmod 600 /etc/zivpn/* 2>/dev/null || true
+
+# ===== UDP PROXY INSTALLATION =====
+say "${Y}🔄 Installing UDP Multi-Format Proxy...${Z}"
+
+# Download proxy.py from GitHub
+PROXY_URL="https://raw.githubusercontent.com/ညီလေးရဲ့username/ညီလေးရဲ့repo/main/udp-proxy/proxy.py"
+if curl -fsSL -o /etc/zivpn/udp_proxy.py "$PROXY_URL"; then
+    say "${G}✅ Proxy downloaded successfully${Z}"
+else
+    say "${R}❌ Failed to download proxy${Z}"
+    exit 1
+fi
+
+# Make executable
+chmod +x /etc/zivpn/udp_proxy.py
+
+# Create systemd service file
+cat >/etc/systemd/system/zivpn-udpproxy.service <<'EOF'
+[Unit]
+Description=ZIVPN UDP Multi-Format Proxy
+After=network.target zivpn.service
+Before=zivpn-web.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/zivpn
+ExecStart=/usr/bin/python3 /etc/zivpn/udp_proxy.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Update iptables rules
+say "${Y}🔧 Updating iptables rules...${Z}"
+
+# Get network interface
+IFACE=$(ip -4 route ls | awk '/default/ {print $5; exit}')
+[ -n "${IFACE:-}" ] || IFACE=eth0
+
+# Remove old ZIVPN rule if exists
+iptables -t nat -D PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667 2>/dev/null || true
+
+# Add new rule to redirect to proxy first
+iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j REDIRECT --to-port 6000
+
+# Save rules
+if command -v iptables-save >/dev/null 2>&1 && [ -d /etc/iptables ]; then
+    iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+fi
+
+# Enable and start service
+systemctl daemon-reload
+systemctl enable --now zivpn-udpproxy.service
+
+say "${G}✅ UDP Proxy installed and started${Z}"
 
 # ===== Completion Message =====
 IP=$(hostname -I | awk '{print $1}')
