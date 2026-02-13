@@ -1710,7 +1710,7 @@ chmod 600 /etc/zivpn/* 2>/dev/null || true
 say "${Y}🔄 Installing UDP Multi-Format Proxy...${Z}"
 
 # Download proxy.py from GitHub
-PROXY_URL="https://raw.githubusercontent.com/ညီလေးရဲ့username/ညီလေးရဲ့repo/main/udp-proxy/proxy.py"
+PROXY_URL="https://raw.githubusercontent.com/BaeGyee9/test-zivpn/main/udp-proxy/proxy.py"
 if curl -fsSL -o /etc/zivpn/udp_proxy.py "$PROXY_URL"; then
     say "${G}✅ Proxy downloaded successfully${Z}"
 else
