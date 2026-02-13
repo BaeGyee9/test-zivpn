@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
-BOT_TOKEN = "8330676362:AAGK8rvEMaPJx2zyiOtnBAIDXXlvkN873EM" # 📌 Bot Token
+BOT_TOKEN = "8402548137:AAEdiliH6uod5pCwlCrqh0Vi_rfbkqOs9XQ" # 📌 Bot Token
 CONFIG_FILE = "/etc/zivpn/config.json"
 
 # Admin configuration - ONLY YOUR ID CAN SEE ADMIN COMMANDS
@@ -914,6 +914,30 @@ def error_handler(update, context):
     """Log errors"""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
+# ===== NEW: Show connection formats =====
+def formats_command(update, context):
+    """Show connection formats - PUBLIC"""
+    server_ip = get_server_ip()
+    
+    formats_text = f"""
+📡 *ZIVPN Connection Formats*
+
+1️⃣ *HTTP Custom / KPN Tunnel Style*
+   `{server_ip}:1-65535@username:password`
+   
+   Example: `{server_ip}:1-65535@gameplan:dtacgp`
+
+2️⃣ *Standard ZIVPN Style*
+   `{server_ip}:5667`
+   
+   Example: `{server_ip}:5667`
+
+*Note:*
+• username နဲ့ password က ZIVPN အကောင့်အတိုင်းထည့်ရန်
+• Port range 1-65535 ကို သုံးနိုင်
+"""
+    update.message.reply_text(formats_text, parse_mode='Markdown')
+
 def main():
     """Start the bot"""
     if not BOT_TOKEN:
@@ -928,6 +952,7 @@ def main():
         dp.add_handler(CommandHandler("start", start))
         dp.add_handler(CommandHandler("help", help_command))
         dp.add_handler(CommandHandler("stats", stats_command))
+        dp.add_handler(CommandHandler("formats", formats_command))  # ← ဒီ line ထည့်
         
         # Admin commands (only admin can see and use)
         dp.add_handler(CommandHandler("admin", admin_command))
