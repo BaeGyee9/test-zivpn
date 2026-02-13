@@ -57,7 +57,7 @@ class Database:
             
         except Exception as e:
             logger.error(f"Database error: {e}")
-            return False, f"Database error"
+            return False, "Database error"
         finally:
             conn.close()
 
