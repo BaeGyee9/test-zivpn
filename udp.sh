@@ -570,24 +570,34 @@ def status_for_user(u, listen_port):
 def sync_config_passwords(mode="mirror"):
     db = get_db()
     active_users = db.execute('''
-        SELECT password FROM users 
+        SELECT username, password FROM users 
         WHERE status = "active" AND password IS NOT NULL AND password != "" 
               AND (expires IS NULL OR expires >= CURRENT_DATE)
     ''').fetchall()
     db.close()
     
-    users_pw = sorted({str(u["password"]) for u in active_users})
+    # Create username:password pairs
+    users_auth = []
+    for u in active_users:
+        if u["username"] and u["password"]:
+            users_auth.append(f"{u['username']}:{u['password']}")
     
-    cfg=read_json(CONFIG_FILE,{})
-    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
-    cfg["auth"]["mode"]="passwords"
-    cfg["auth"]["config"]=users_pw
-    cfg["listen"]=cfg.get("listen") or ":5667"
-    cfg["cert"]=cfg.get("cert") or "/etc/zivpn/zivpn.crt"
-    cfg["key"]=cfg.get("key") or "/etc/zivpn/zivpn.key"
-    cfg["obfs"]=cfg.get("obfs") or "zivpn"
+    users_auth = sorted(list(set(users_auth)))
     
-    write_json_atomic(CONFIG_FILE,cfg)
+    cfg = read_json(CONFIG_FILE, {})
+    if not isinstance(cfg.get("auth"), dict): 
+        cfg["auth"] = {}
+    
+    # Keep "users" mode, don't change back to "passwords"
+    cfg["auth"]["mode"] = "users"                 # ← "users" ပဲထား
+    cfg["auth"]["config"] = users_auth
+    
+    cfg["listen"] = cfg.get("listen") or ":5667"
+    cfg["cert"] = cfg.get("cert") or "/etc/zivpn/zivpn.crt"
+    cfg["key"] = cfg.get("key") or "/etc/zivpn/zivpn.key"
+    cfg["obfs"] = cfg.get("obfs") or "zivpn"
+    
+    write_json_atomic(CONFIG_FILE, cfg)
     subprocess.run("systemctl restart zivpn.service", shell=True)
 
 def login_enabled(): return bool(ADMIN_USER and ADMIN_PASS)
@@ -1223,23 +1233,29 @@ def write_json_atomic(path, data):
         except: pass
 
 def sync_config_passwords():
-    # Only sync passwords for non-suspended/non-expired users
     db = get_db()
     active_users = db.execute('''
-        SELECT password FROM users 
+        SELECT username, password FROM users 
         WHERE status = "active" AND password IS NOT NULL AND password != "" 
               AND (expires IS NULL OR expires >= CURRENT_DATE)
     ''').fetchall()
     db.close()
     
-    users_pw = sorted({str(u["password"]) for u in active_users})
+    users_auth = []
+    for u in active_users:
+        if u["username"] and u["password"]:
+            users_auth.append(f"{u['username']}:{u['password']}")
     
-    cfg=read_json(CONFIG_FILE,{})
-    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
-    cfg["auth"]["mode"]="passwords"
-    cfg["auth"]["config"]=users_pw
+    users_auth = sorted(list(set(users_auth)))
     
-    write_json_atomic(CONFIG_FILE,cfg)
+    cfg = read_json(CONFIG_FILE, {})
+    if not isinstance(cfg.get("auth"), dict): 
+        cfg["auth"] = {}
+    
+    cfg["auth"]["mode"] = "users"                 # ← "users" ပဲထား
+    cfg["auth"]["config"] = users_auth
+    
+    write_json_atomic(CONFIG_FILE, cfg)
     subprocess.run("systemctl restart zivpn.service", shell=True)
 
 def daily_cleanup():
